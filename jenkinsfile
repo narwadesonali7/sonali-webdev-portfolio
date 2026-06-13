@@ -1,0 +1,35 @@
+pipeline {
+    agent any
+
+    environment {
+        SSH_CRED = 'node-app-key'               // Jenkins credential ID
+        SERVER_IP = '52.87.185.158'          // Your Deploy EC2 IP
+        REMOTE_USER = 'ubuntu'
+        WEB_DIR = '/var/www/html/'
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git url: 'https://github.com/iamtruptimane/portfolio-app-deployment-CICD.git', branch: 'main'
+            }
+        }
+
+        stage('Deploy to Apache Server') {
+            steps {
+                sshagent(credentials: ["${SSH_CRED}"]) {
+                    sh '''
+                        echo "Cleaning old files on server..."
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "sudo rm -rf ${WEB_DIR}/*"
+
+                        echo "Uploading new files to /tmp on server..."
+                        scp -r index.htmlabout.html contact.html portfolio-details.html portfolio.html resume.html services.html starter-page.html Readmi.txt assets forms ${REMOTE_USER}@${SERVER_IP}:/tmp/
+
+                        echo "Deploying files to Apache directory..."
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "sudo cp -r /tmp/index.html /tmp/css /tmp/js /tmp/fonts /tmp/images ${WEB_DIR}/"
+                    '''
+                }
+            }
+        }
+    }
+}
