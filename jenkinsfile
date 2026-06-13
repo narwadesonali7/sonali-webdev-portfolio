@@ -2,34 +2,67 @@ pipeline {
     agent any
 
     environment {
-        SSH_CRED = 'node-app-key-deploy'               // Jenkins credential ID
-        SERVER_IP = '52.87.185.158'          // Your Deploy EC2 IP
+        SSH_CRED = 'node-app-key-deploy'
+        SERVER_IP = '52.87.185.158'
         REMOTE_USER = 'ubuntu'
-        WEB_DIR = '/var/www/html/'
+        WEB_DIR = '/var/www/html'
     }
 
     stages {
-        stage('Clone Repo') {
-            steps {
-                git url: 'https://github.com/narwadesonali7/sonali-webdev-portfolio.git', branch: 'main'
-            }
-        }
 
-        stage('Deploy to Apache Server') {
+        stage('Deploy Website to Apache Server') {
             steps {
                 sshagent(credentials: ["${SSH_CRED}"]) {
                     sh '''
-                        echo "Cleaning old files on server..."
-                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "sudo rm -rf ${WEB_DIR}/*"
+                        echo "Cleaning old website files..."
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "
+                            sudo rm -rf ${WEB_DIR}/*
+                        "
 
-                        echo "Uploading new files to /tmp on server..."
-                        sudo cp -r /tmp/index.html /tmp/about.html /tmp/contact.html /tmp/portfolio-details.html /tmp/portfolio.html /tmp/resume.html /tmp/services.html /tmp/starter-page.html /tmp/assets /tmp/forms ${WEB_DIR}/
+                        echo "Uploading website files to EC2 /tmp directory..."
+                        scp -o StrictHostKeyChecking=no -r \
+                        index.html \
+                        about.html \
+                        contact.html \
+                        portfolio-details.html \
+                        portfolio.html \
+                        resume.html \
+                        services.html \
+                        starter-page.html \
+                        assets \
+                        forms \
+                        ${REMOTE_USER}@${SERVER_IP}:/tmp/
 
-                        echo "Deploying files to Apache directory..."
-                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "sudo cp -r /tmp/index.html /tmp/css /tmp/js /tmp/fonts /tmp/images ${WEB_DIR}/"
+                        echo "Copying files from /tmp to Apache web directory..."
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "
+                            sudo cp -r \
+                            /tmp/index.html \
+                            /tmp/about.html \
+                            /tmp/contact.html \
+                            /tmp/portfolio-details.html \
+                            /tmp/portfolio.html \
+                            /tmp/resume.html \
+                            /tmp/services.html \
+                            /tmp/starter-page.html \
+                            /tmp/assets \
+                            /tmp/forms \
+                            ${WEB_DIR}/
+                        "
+
+                        echo "Deployment completed successfully!"
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Website deployed successfully to Apache Server."
+        }
+
+        failure {
+            echo "Deployment failed. Check Jenkins console logs."
         }
     }
 }
